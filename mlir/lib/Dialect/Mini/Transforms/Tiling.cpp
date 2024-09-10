@@ -1,0 +1,79 @@
+//===- Tiling.cpp - Code to perform loop unroll and jam ---------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file implements loop unroll and jam. Unroll and jam is a transformation
+// that improves locality, in particular, register reuse, while also improving
+// operation level parallelism. The example below shows what it does in nearly
+// the general case. Loop unroll and jam currently works if the bounds of the
+// loops inner to the loop being unroll-jammed do not depend on the latter.
+//
+// Before      After unroll and jam of i by factor 2:
+//
+//             for i, step = 2
+// for i         S1(i);
+//   S1;         S2(i);
+//   S2;         S1(i+1);
+//   for j       S2(i+1);
+//     S3;       for j
+//     S4;         S3(i, j);
+//   S5;           S4(i, j);
+//   S6;           S3(i+1, j)
+//                 S4(i+1, j)
+//               S5(i);
+//               S6(i);
+//               S5(i+1);
+//               S6(i+1);
+//
+// Note: 'if/else' blocks are not jammed. So, if there are loops inside if
+// op's, bodies of those loops will not be jammed.
+//===----------------------------------------------------------------------===//
+
+#include "mlir/Dialect/Mini/Transforms/Passes.h"
+
+#include "mlir/Dialect/Affine/Analysis/AffineAnalysis.h"
+#include "mlir/Dialect/Affine/Analysis/LoopAnalysis.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Affine/LoopUtils.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/AffineExpr.h"
+#include "mlir/IR/AffineMap.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/CommandLine.h"
+#include <optional>
+
+namespace mlir {
+namespace mini {
+#define GEN_PASS_DEF_MINITILING
+#include "mlir/Dialect/Mini/Transforms/Passes.h.inc"
+} // namespace mini
+} // namespace mlir
+
+#define DEBUG_TYPE "tile-mini-ops"
+
+using namespace mlir;
+using namespace mlir::mini;
+
+namespace {
+/// Loop unroll jam pass. Currently, this just unroll jams the first
+/// outer loop in a Function.
+struct Tiling
+    : public mini::impl::MiniTilingBase<Tiling> {
+  void runOnOperation() override;
+};
+} // namespace
+
+std::unique_ptr<OperationPass<func::FuncOp>>
+mlir::mini::createTilingPass() {
+  return std::make_unique<Tiling>();
+}
+
+void Tiling::runOnOperation() {
+    getOperation()->dump();
+}
