@@ -995,7 +995,7 @@ mlir::scf::tileReductionUsingScf(RewriterBase &b,
       // 4c. Delete the cloned operation.
       b.eraseOp(clonedOp);
     }
-
+    op.getOperation()->getParentOfType<ModuleOp>()->dump();
     // 4d. Compute the offsets and sizes needed to insert the result of the
     // tiled value back into destination before yielding the destination.
     for (auto result : tiledResult) {

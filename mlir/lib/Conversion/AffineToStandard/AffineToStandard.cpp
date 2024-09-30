@@ -24,6 +24,9 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/Passes.h"
+#include "mlir/Dialect/Mini/IR/Mini.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_CONVERTAFFINETOSTANDARD
@@ -523,6 +526,121 @@ public:
   }
 };
 
+static FlatSymbolRefAttr getFunc(ModuleOp module, StringRef name,
+                                               TypeRange resultType,
+                                               ValueRange operands
+                                               ) {
+  MLIRContext *context = module.getContext();
+  auto result = SymbolRefAttr::get(context, name);
+  auto func = module.lookupSymbol<mlir::func::FuncOp>(result.getAttr());
+  if (!func) {
+    OpBuilder moduleBuilder(module.getBodyRegion());
+    func = moduleBuilder.create<mlir::func::FuncOp>(
+        module.getLoc(), name,
+        FunctionType::get(context, operands.getTypes(), resultType));
+    func.setPrivate();
+    //if (static_cast<bool>(emitCInterface))
+      func->setAttr(LLVM::LLVMDialect::getEmitCWrapperAttrName(),
+                    UnitAttr::get(context));
+  }
+  return result;
+}
+
+static func::CallOp createFuncCall(
+    OpBuilder &builder, Location loc, StringRef name, TypeRange resultType,
+    ValueRange operands) {
+  auto module = builder.getBlock()->getParentOp()->getParentOfType<ModuleOp>();
+  FlatSymbolRefAttr fn =
+      getFunc(module, name, resultType, operands);
+  return builder.create<mlir::func::CallOp>(loc, resultType, fn, operands);
+}
+
+class MiniAddOpLowering : public OpRewritePattern<mini::AddOp> {
+public:
+  using OpRewritePattern<mini::AddOp>::OpRewritePattern;
+
+  LogicalResult
+  matchAndRewrite(mini::AddOp stepOp,
+                  PatternRewriter &rewriter) const override {
+    //Type llvmType = typeConverter->convertType(stepOp.getType());
+    auto fnName = "miniAdd";
+    auto moduleOp = stepOp->getParentOfType<ModuleOp>();
+    // auto voidType = mlir::LLVM::LLVMVoidType::get(stepOp.getContext());
+    // auto addTy =
+    //   LLVM::LLVMFunctionType::get(voidType, {llvmType, llvmType, llvmType},
+    //                               /*isVarArg=*/false);
+    // LLVM::LLVMFuncOp printfDecl =
+    //   getOrDefineFunction(moduleOp, stepOp->getLoc(), rewriter, "_mlir_ciface_miniAdd", addTy);
+    auto memrefType = stepOp.getType().dyn_cast<MemRefType>();
+    assert(memrefType);
+    SmallVector<Value, 4> args;
+    auto loc = stepOp->getLoc();
+    auto dynamicShape = UnrankedMemRefType::get(memrefType.getElementType(), 0);
+    auto castLhs = rewriter.create<memref::CastOp>(loc, dynamicShape, stepOp.getLhs());
+    args.push_back(castLhs);
+    auto castRhs = rewriter.create<memref::CastOp>(loc, dynamicShape, stepOp.getRhs());
+    args.push_back(castRhs);
+    auto alloc = rewriter.create<memref::AllocOp>(stepOp->getLoc(), memrefType, rewriter.getI64IntegerAttr(64));
+    auto castRes = rewriter.create<memref::CastOp>(loc, dynamicShape, alloc);
+    args.push_back(castRes);
+    // auto callOp = rewriter.create<LLVM::CallOp>(stepOp->getLoc(), printfDecl, args);
+    // SmallVector<Type, 2> resTy1; resTy1.push_back(stepOp.getType());
+    // SmallVector<Value, 2> val1; val1.push_back(alloc);
+    // castOp = rewriter.create<UnrealizedConversionCastOp>(stepOp->getLoc(), resTy1, val1);
+    // rewriter.replaceOp(stepOp, castOp);
+    // return success();
+
+    auto callOp = createFuncCall(rewriter, stepOp->getLoc(), fnName, {}, args);
+    //stepOp->getParentOfType<ModuleOp>()->dump();
+    //auto callOp = rewriter.create<func::CallOp>(loc, fnName, {}, args);
+    rewriter.replaceOp(stepOp, alloc);
+    return success();
+  }
+};
+
+class MiniMatMulOpLowering : public OpRewritePattern<mini::MatMulOp> {
+public:
+  using OpRewritePattern<mini::MatMulOp>::OpRewritePattern;
+
+  LogicalResult
+  matchAndRewrite(mini::MatMulOp stepOp,
+                  PatternRewriter &rewriter) const override {
+    //Type llvmType = typeConverter->convertType(stepOp.getType());
+    auto fnName = "miniMatMul";
+    auto moduleOp = stepOp->getParentOfType<ModuleOp>();
+    // auto voidType = mlir::LLVM::LLVMVoidType::get(stepOp.getContext());
+    // auto addTy =
+    //   LLVM::LLVMFunctionType::get(voidType, {llvmType, llvmType, llvmType},
+    //                               /*isVarArg=*/false);
+    // LLVM::LLVMFuncOp printfDecl =
+    //   getOrDefineFunction(moduleOp, stepOp->getLoc(), rewriter, "_mlir_ciface_miniAdd", addTy);
+    auto memrefType = stepOp.getType().dyn_cast<MemRefType>();
+    assert(memrefType);
+    SmallVector<Value, 4> args;
+    auto loc = stepOp->getLoc();
+    auto dynamicShape = UnrankedMemRefType::get(memrefType.getElementType(), 0);
+    auto castLhs = rewriter.create<memref::CastOp>(loc, dynamicShape, stepOp.getLhs());
+    args.push_back(castLhs);
+    auto castRhs = rewriter.create<memref::CastOp>(loc, dynamicShape, stepOp.getRhs());
+    args.push_back(castRhs);
+    auto alloc = rewriter.create<memref::AllocOp>(stepOp->getLoc(), memrefType, rewriter.getI64IntegerAttr(64));
+    auto castRes = rewriter.create<memref::CastOp>(loc, dynamicShape, alloc);
+    args.push_back(castRes);
+    // auto callOp = rewriter.create<LLVM::CallOp>(stepOp->getLoc(), printfDecl, args);
+    // SmallVector<Type, 2> resTy1; resTy1.push_back(stepOp.getType());
+    // SmallVector<Value, 2> val1; val1.push_back(alloc);
+    // castOp = rewriter.create<UnrealizedConversionCastOp>(stepOp->getLoc(), resTy1, val1);
+    // rewriter.replaceOp(stepOp, castOp);
+    // return success();
+
+    auto callOp = createFuncCall(rewriter, stepOp->getLoc(), fnName, {}, args);
+    //stepOp->getParentOfType<ModuleOp>()->dump();
+    //auto callOp = rewriter.create<func::CallOp>(loc, fnName, {}, args);
+    rewriter.replaceOp(stepOp, alloc);
+    return success();
+  }
+};
+
 } // namespace
 
 void mlir::populateAffineToStdConversionPatterns(RewritePatternSet &patterns) {
@@ -539,6 +657,8 @@ void mlir::populateAffineToStdConversionPatterns(RewritePatternSet &patterns) {
       AffineStoreLowering,
       AffineForLowering,
       AffineIfLowering,
+      MiniAddOpLowering,
+      MiniMatMulOpLowering,
       AffineYieldOpLowering>(patterns.getContext());
   // clang-format on
 }
@@ -562,7 +682,7 @@ class LowerAffinePass
     populateAffineExpandIndexOpsPatterns(patterns);
     ConversionTarget target(getContext());
     target.addLegalDialect<arith::ArithDialect, memref::MemRefDialect,
-                           scf::SCFDialect, VectorDialect>();
+                           scf::SCFDialect, VectorDialect, func::FuncDialect>();
     if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))
       signalPassFailure();

@@ -26,19 +26,18 @@ include "mlir/IR/OpAsmInterface.td"
 class Mini_Op<string mnemonic, list<Trait> traits = []> :
     Op<Mini_Dialect, mnemonic,
        traits #
-       [NoMemoryEffect] #
-       ElementwiseMappable.traits>;
+       [NoMemoryEffect]>;
 
 // Base class for integer and floating point minimetic ops. All ops have one
 // result, require operands and results to be of the same type, and can accept
 // tensors or vectors of integers or floats.
 class Mini_MiniOp<string mnemonic, list<Trait> traits = []> :
-    Mini_Op<mnemonic, traits # [SameOperandsAndResultType]>;
+    Mini_Op<mnemonic, traits # []>;
 
 // Base class for binary minimetic operations.
 class Mini_BinaryOp<string mnemonic, list<Trait> traits = []> :
     Mini_MiniOp<mnemonic, traits> {
-  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)";
 }
 
 // Base class for integer binary operations.
@@ -73,5 +72,22 @@ def Mini_AddOp : Mini_TotalIntBinaryOp<"add", [Commutative
   //let hasCanonicalizer = 1;
 }
 
+def Mini_MatMulOp : Mini_TotalIntBinaryOp<"matmul", [
+  //Commutative
+      //,DeclareOpInterfaceMethods<TilingInterface,
+      //["getIterationDomain",
+       //"getLoopIteratorTypes",
+       //"getResultTilePosition",
+       //"getTiledImplementation"]>
+       ]> {
+  let summary = "integer addition operation";
+  let description = [{
+    The `addi` operation takes two operands and returns one result, each of
+    these is required to be the same type. This type may be an integer scalar type, 
+    a vector whose element type is integer, or a tensor of integers.
+  }];
+  //let hasFolder = 1;
+  //let hasCanonicalizer = 1;
+}
 
 #endif // MINI_OPS

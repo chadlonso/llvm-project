@@ -2,7 +2,7 @@
 #add_subdirectory(TransformOps)
 
 set(LLVM_TARGET_DEFINITIONS Passes.td)
-mlir_tablegen(Passes.h.inc -gen-pass-decls -name Linalg)
+mlir_tablegen(Passes.h.inc -gen-pass-decls -name Mini)
 #mlir_tablegen(Passes.capi.h.inc -gen-pass-capi-header --prefix Linalg)
 #mlir_tablegen(Passes.capi.cpp.inc -gen-pass-capi-impl --prefix Linalg)
 add_public_tablegen_target(MLIRMiniPassIncGen)

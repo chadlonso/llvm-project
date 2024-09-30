@@ -336,6 +336,33 @@ int64_t verifyMemRef(const DynamicMemRefType<T> &actual,
                                        actual.strides, printCounter);
 }
 
+void miniAdd(const DynamicMemRefType<int64_t> &a,
+                    const DynamicMemRefType<int64_t> &b,
+                    DynamicMemRefType<int64_t> &c) {
+  // Check if the memref shapes match.
+  for (int64_t i = 0; i < 8; ++i)
+    for (int64_t j = 0; j < 8; ++j)
+    { 
+      c.data[i*8+j] = a.data[i*8+j] + b.data[i*8+j];
+    }
+  return;
+}
+
+void miniMatMul(const DynamicMemRefType<int64_t> &a,
+                    const DynamicMemRefType<int64_t> &b,
+                    DynamicMemRefType<int64_t> &c) {
+  // Check if the memref shapes match.
+  for (int64_t i = 0; i < 8; ++i)
+    for (int64_t j = 0; j < 8; ++j)
+    { 
+      int8_t acc = 0;
+      for(int64_t k = 0; k < 8; k++)
+        acc += a.data[i*8+k] * b.data[k*8+j];
+      c.data[i*8+j] = acc;  
+    }
+  return;
+}
+
 /// Verify the equivalence of two unranked memrefs and return the number of
 /// errors or -1 if the shape of the memrefs do not match.
 template <typename T>
@@ -343,6 +370,24 @@ int64_t verifyMemRef(UnrankedMemRefType<T> &actual,
                      UnrankedMemRefType<T> &expected) {
   return verifyMemRef(DynamicMemRefType<T>(actual),
                       DynamicMemRefType<T>(expected));
+}
+
+void miniAdd(UnrankedMemRefType<int64_t> &a,
+                     UnrankedMemRefType<int64_t> &b,
+                     UnrankedMemRefType<int64_t> &c) {
+  auto cnew= DynamicMemRefType<int64_t>(c);
+  return miniAdd(DynamicMemRefType<int64_t>(a),
+                      DynamicMemRefType<int64_t>(b),
+                      cnew);
+}
+
+void miniMatMul(UnrankedMemRefType<int64_t> &a,
+                     UnrankedMemRefType<int64_t> &b,
+                     UnrankedMemRefType<int64_t> &c) {
+  auto cnew= DynamicMemRefType<int64_t>(c);
+  return miniMatMul(DynamicMemRefType<int64_t>(a),
+                      DynamicMemRefType<int64_t>(b),
+                      cnew);
 }
 
 } // namespace impl
@@ -431,6 +476,10 @@ extern "C" MLIR_RUNNERUTILS_EXPORT void _mlir_ciface_printMemrefVector4x4xf32(
 
 extern "C" MLIR_RUNNERUTILS_EXPORT int64_t _mlir_ciface_verifyMemRefI8(
     UnrankedMemRefType<int8_t> *actual, UnrankedMemRefType<int8_t> *expected);
+extern "C" MLIR_RUNNERUTILS_EXPORT void _mlir_ciface_miniAdd(
+    UnrankedMemRefType<int64_t> *a, UnrankedMemRefType<int64_t> *b, UnrankedMemRefType<int64_t> *c);
+extern "C" MLIR_RUNNERUTILS_EXPORT void _mlir_ciface_miniMatMul(
+    UnrankedMemRefType<int64_t> *a, UnrankedMemRefType<int64_t> *b, UnrankedMemRefType<int64_t> *c);
 extern "C" MLIR_RUNNERUTILS_EXPORT int64_t _mlir_ciface_verifyMemRefI16(
     UnrankedMemRefType<int16_t> *actual, UnrankedMemRefType<int16_t> *expected);
 extern "C" MLIR_RUNNERUTILS_EXPORT int64_t _mlir_ciface_verifyMemRefI32(

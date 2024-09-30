@@ -79,6 +79,7 @@ set(LIBS
   MLIRTransformUtils
   MLIRSupport
   MLIRIR
+  MLIRMiniTransforms
 
   # TODO: Remove when registerAllGPUToLLVMIRTranslations is no longer
   # registered directly in mini-opt.cpp.

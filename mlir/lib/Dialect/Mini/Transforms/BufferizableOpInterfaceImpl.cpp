@@ -20,9 +20,8 @@ using namespace mlir::bufferization;
 
 namespace {
 
-/// Bufferization of arith.select. Just replace the operands.
-struct SelectOpInterface
-    : public BufferizableOpInterface::ExternalModel<SelectOpInterface,
+struct AddOpBufferize
+    : public BufferizableOpInterface::ExternalModel<AddOpBufferize,
                                                     mini::AddOp> {
   bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
                               const AnalysisState &state) const {
@@ -45,10 +44,6 @@ struct SelectOpInterface
     auto selectOp = cast<mini::AddOp>(op);
     Location loc = selectOp.getLoc();
 
-    // TODO: It would be more efficient to copy the result of the `select` op
-    // instead of its OpOperands. In the worst case, 2 copies are inserted at
-    // the moment (one for each tensor). When copying the op result, only one
-    // copy would be needed.
     FailureOr<Value> maybeTrueBuffer =
         getBuffer(rewriter, selectOp.getLhs(), options);
     FailureOr<Value> maybeFalseBuffer =
@@ -59,7 +54,47 @@ struct SelectOpInterface
     Value falseBuffer = *maybeFalseBuffer;
 
     replaceOpWithNewBufferizedOp<mini::AddOp>(
-        rewriter, op, trueBuffer, falseBuffer);
+        rewriter, op, trueBuffer.getType(), trueBuffer, falseBuffer);
+    return success();
+  }
+};
+
+struct MatMulOpBufferize
+    : public BufferizableOpInterface::ExternalModel<MatMulOpBufferize,
+                                                    mini::MatMulOp> {
+  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
+                              const AnalysisState &state) const {
+    return true;
+  }
+
+  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
+                               const AnalysisState &state) const {
+    return true;
+  }
+
+  AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
+                                      const AnalysisState &state) const {
+    return {{op->getOpResult(0) /*result*/, BufferRelation::Equivalent,
+             /*isDefinite=*/false}};
+  }
+
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const BufferizationOptions &options) const {
+    auto selectOp = cast<mini::MatMulOp>(op);
+    Location loc = selectOp.getLoc();
+
+    FailureOr<Value> maybeTrueBuffer =
+        getBuffer(rewriter, selectOp.getLhs(), options);
+    FailureOr<Value> maybeFalseBuffer =
+        getBuffer(rewriter, selectOp.getRhs(), options);
+    if (failed(maybeTrueBuffer) || failed(maybeFalseBuffer))
+      return failure();
+    Value trueBuffer = *maybeTrueBuffer;
+    Value falseBuffer = *maybeFalseBuffer;
+    llvm::errs()<<"buffer type\n";
+    //op->getResult(0).getType();
+    replaceOpWithNewBufferizedOp<mini::MatMulOp>(
+        rewriter, op, trueBuffer.getType(), trueBuffer, falseBuffer);
     return success();
   }
 };
@@ -69,6 +104,7 @@ struct SelectOpInterface
 void mlir::mini::registerBufferizableOpInterfaceExternalModels(
     DialectRegistry &registry) {
   registry.addExtension(+[](MLIRContext *ctx, MiniDialect *dialect) {
-    AddOp::attachInterface<SelectOpInterface>(*ctx);
+    AddOp::attachInterface<AddOpBufferize>(*ctx);
+    MatMulOp::attachInterface<MatMulOpBufferize>(*ctx);
   });
 }

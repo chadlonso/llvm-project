@@ -14,6 +14,10 @@ include "mlir/Pass/PassBase.td"
 def MiniTiling : Pass<"tile-mini-ops", "func::FuncOp"> {
   let summary = "Unroll and jam affine loops";
   let constructor = "mlir::mini::createTilingPass()";
+  let dependentDialects = [
+      "affine::AffineDialect",
+      "tensor::TensorDialect", "scf::SCFDialect"
+  ];
 }
 
 

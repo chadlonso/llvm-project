@@ -225,6 +225,20 @@ _mlir_ciface_verifyMemRefI8(UnrankedMemRefType<int8_t> *actual,
   return impl::verifyMemRef(*actual, *expected);
 }
 
+extern "C" void
+_mlir_ciface_miniAdd(UnrankedMemRefType<int64_t> *a,
+                            UnrankedMemRefType<int64_t> *b,
+                            UnrankedMemRefType<int64_t> *c) {
+  return impl::miniAdd(*a, *b, *c);
+}
+
+extern "C" void
+_mlir_ciface_miniMatMul(UnrankedMemRefType<int64_t> *a,
+                            UnrankedMemRefType<int64_t> *b,
+                            UnrankedMemRefType<int64_t> *c) {
+  return impl::miniMatMul(*a, *b, *c);
+}
+
 extern "C" int64_t
 _mlir_ciface_verifyMemRefI16(UnrankedMemRefType<int16_t> *actual,
                              UnrankedMemRefType<int16_t> *expected) {

@@ -19,7 +19,13 @@ class TypeConverter;
 namespace func {
 class FuncOp;
 } // namespace func
-
+class AffineDialect;
+namespace tensor {
+class TensorDialect;
+} // namespace tensor
+namespace scf {
+class SCFDialect;
+} // namespace scf
 namespace mini {
 
 #define GEN_PASS_DECL

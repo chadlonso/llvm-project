@@ -27,7 +27,9 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "mlir/Dialect/Mini/IR/Mini.h"
+#include "mlir/Dialect/Mini/Transforms/Passes.h"
 #include "mlir/Dialect/Mini/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/Mini/Transforms/TilingInterfaceImpl.h"
 
 using namespace llvm;
 using namespace mlir;
@@ -301,11 +303,13 @@ int main(int argc, char **argv) {
 #ifdef MLIR_INCLUDE_TESTS
   registerTestPasses();
 #endif
+  mini::registerMiniPasses();
   DialectRegistry registry;
   registerAllDialects(registry);
   registry.insert<mini::MiniDialect>();
   registerAllExtensions(registry);
   mini::registerBufferizableOpInterfaceExternalModels(registry);
+  mini::registerTilingInterfaceExternalModels(registry);
   //mini::registerTilingInterfaceExternalModels(registry);
   // TODO: Remove this and the corresponding MLIRToLLVMIRTranslationRegistration
   // cmake dependency when a safe dialect interface registration mechanism is

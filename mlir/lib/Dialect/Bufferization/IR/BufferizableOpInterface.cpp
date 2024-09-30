@@ -711,6 +711,7 @@ void bufferization::replaceOpWithBufferizedValues(RewriterBase &rewriter,
     if (llvm::isa<TensorType>(opResult.getType())) {
       // The OpResult is a tensor. Such values are replaced with memrefs during
       // bufferization.
+      //replacement.getType().dump();
       assert((llvm::isa<MemRefType>(replacement.getType()) ||
               llvm::isa<UnrankedMemRefType>(replacement.getType())) &&
              "tensor op result should be replaced with a memref value");
